@@ -1,0 +1,14 @@
+flask
+flask-cors
+python-dotenv
+pydantic
+joblib
+scikit-learn
+pandas
+numpy
+pymupdf
+pdfplumber
+regex
+rapidfuzz
+spacy
+openai
