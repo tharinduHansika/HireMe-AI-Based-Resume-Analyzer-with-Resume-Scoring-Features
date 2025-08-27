@@ -28,7 +28,7 @@ export const ResultsDisplay = ({ results, onReset }) => {
               <p className={`font-bold ${getScoreColor(final_score)}`}>{getScoreText(final_score)}</p>
             </div>
             <div className="bg-blue-50 rounded-lg p-4 text-center">
-              <h3 className="text-sm uppercase tracking-wider text-gray-500 mb-1">ML Score</h3>
+              <h3 className="text-sm uppercase tracking-wider text-gray-500 mb-1">AI Score</h3>
               <div className="flex justify-center my-3"><ScoreIndicator score={ml_score} /></div>
               <p className="text-sm text-gray-600">Based on content relevance</p>
             </div>
