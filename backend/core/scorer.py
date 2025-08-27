@@ -1,22 +1,97 @@
-def structure_score_from_coverage(coverage: dict) -> float:
-    """
-    Start at 100; subtract points for missing sections.
-    Hard penalties for core sections; soft for optional ones.
-    """
-    score = 100.0
-    # Core
-    if not coverage.get("skills"): score -= 20
-    if not coverage.get("experience"): score -= 20
-    if not coverage.get("education"): score -= 20
-    # Optional
-    if not coverage.get("projects"): score -= 10
-    if not coverage.get("certifications"): score -= 10
-    if not coverage.get("summary"): score -= 10
-    if not coverage.get("contact"): score -= 10
-    return float(max(0.0, min(100.0, score)))
+# backend/core/scorer.py
+from __future__ import annotations
+from typing import Dict, Any
 
-def blend_final_score(ml_score: float, structure_score: float, w_ml: float = 0.7) -> float:
-    w_ml = max(0.0, min(1.0, w_ml))
-    w_st = 1.0 - w_ml
-    final = w_ml * ml_score + w_st * structure_score
-    return float(max(0.0, min(100.0, final)))
+# Sections we expect in a resume
+EXPECTED_SECTIONS = [
+    "summary",         # / objective / profile
+    "skills",
+    "experience",
+    "education",
+    "certifications",
+    "projects",
+    "contact",
+]
+
+def _coverage_score(coverage: Dict[str, bool]) -> float:
+    """
+    Simple coverage: percent of EXPECTED_SECTIONS that are present.
+    Returns 0..100.
+    """
+    if not coverage:
+        return 0.0
+    total = len(EXPECTED_SECTIONS)
+    have = sum(1 for s in EXPECTED_SECTIONS if coverage.get(s, False))
+    return 100.0 * have / total if total else 0.0
+
+def structure_score_from_coverage(coverage: Dict[str, bool]) -> float:
+    """
+    Legacy helper kept for backward compatibility.
+    """
+    return round(_coverage_score(coverage), 1)
+
+
+def structure_score(fields: Dict[str, Any], coverage: Dict[str, bool]) -> float:
+    """
+    Primary structure score used by the API.
+    Combines section coverage with a few lightweight heuristics based on extracted fields.
+
+    Inputs:
+      fields: {
+        "skills": List[str],
+        "experienceYears": float|int|None,
+        "education": str|dict|None,
+        "certifications": List[str],
+        "projectsCount": int|None,
+        "jobRole": str|None,
+        ...
+      }
+      coverage: Dict[str, bool] (which sections detected)
+
+    Output:
+      float in [0, 100]
+    """
+    score = _coverage_score(coverage)  # base out of 100 (percent of sections present)
+
+    # Heuristic boosts (bounded so total stays in 0..100)
+    skills = fields.get("skills") or []
+    if isinstance(skills, (list, tuple)):
+        if len(skills) >= 5:
+            score += 6
+        elif len(skills) >= 3:
+            score += 3
+
+    exp_years = fields.get("experienceYears")
+    try:
+        exp_years = float(exp_years) if exp_years is not None else 0.0
+    except Exception:
+        exp_years = 0.0
+    if exp_years >= 5:
+        score += 6
+    elif exp_years >= 1:
+        score += 3
+
+    projects = fields.get("projectsCount")
+    try:
+        projects = int(projects) if projects is not None else 0
+    except Exception:
+        projects = 0
+    if projects >= 3:
+        score += 5
+    elif projects >= 1:
+        score += 3
+
+    certs = fields.get("certifications") or []
+    if isinstance(certs, (list, tuple)) and len(certs) >= 1:
+        score += 3
+
+    # Make sure score is within bounds
+    if score < 0:
+        score = 0.0
+    if score > 100:
+        score = 100.0
+
+    return round(score, 1)
+
+
+__all__ = ["structure_score", "structure_score_from_coverage", "EXPECTED_SECTIONS"]

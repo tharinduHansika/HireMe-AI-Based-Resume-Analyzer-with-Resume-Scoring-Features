@@ -1,69 +1,65 @@
+# core/llm.py
+from __future__ import annotations
 import os
-from typing import List
 
-def _fallback_rule_based_feedback(extracted: dict, coverage: dict) -> List[str]:
-    items = []
-
-    if not coverage.get("summary"):
-        items.append("Add a short professional summary at the top (2–3 lines with role, years, and key strengths).")
-
-    if not coverage.get("skills") or len(extracted.get("skills", [])) < 8:
-        items.append("Expand the skills section with 8–12 targeted, role-aligned keywords (e.g., frameworks, tools).")
-
-    if extracted.get("experienceYears", 0) > 0:
-        items.append("Quantify impact in work experience (metrics like %, time saved, revenue, users).")
-    else:
-        items.append("Add relevant experience entries or internships with responsibilities and technologies used.")
-
-    if not coverage.get("certifications"):
-        items.append("Include 1–2 relevant certificates (e.g., AWS CCP, Azure Fundamentals, Google Data Analytics).")
-
-    if not coverage.get("projects") or extracted.get("projectsCount", 0) < 2:
-        items.append("Show 2–3 projects with 1–2 bullet points each, focusing on tech stack and outcomes.")
-
-    items.append("Ensure consistent formatting: headings, font sizes, and bullet alignment.")
-    return items[:6]
-
-def _build_prompt(extracted: dict, coverage: dict, scores: dict, job_role: str | None):
-    role = job_role or extracted.get("jobRole") or "the target role"
-    return f"""You are a precise resume reviewer. Using ONLY the facts below, create 5–7 concise, actionable bullet points of feedback tailored for {role}. Avoid generic advice. Reference missing sections explicitly. Keep each bullet under 22 words.
-
-Extracted:
-- Skills: {', '.join(extracted.get('skills', [])) or '—'}
-- Experience (years): {extracted.get('experienceYears')}
-- Education: {extracted.get('education') or '—'}
-- Certifications: {', '.join(extracted.get('certifications', [])) or '—'}
-- Projects count: {extracted.get('projectsCount')}
-- Job Role (if any): {extracted.get('jobRole') or '—'}
-
-Section coverage:
-{coverage}
-
-Scores:
-Final: {scores.get('final')}, ML: {scores.get('ml')}, Structure: {scores.get('structure')}
-
-Output strictly as a plain list of bullet sentences (no numbering, no extra commentary)."""
-
-def generate_feedback(extracted: dict, coverage: dict, scores: dict, job_role: str | None,
-                      api_key: str = "", model_name: str = "gpt-4o-mini"):
+def generate_feedback(
+    extracted: dict,
+    coverage: dict,
+    scores: dict,
+    job_role: str | None,
+    api_key: str | None,
+    model_name: str = "gpt-4o-mini",
+):
+    # Rule-based fallback
     if not api_key:
-        return _fallback_rule_based_feedback(extracted, coverage)
+        tips = []
+        if not coverage.get("summary"): tips.append("Add a 2–3 sentence Professional Summary aligned to your target role.")
+        if len(extracted.get("skills", [])) < 8: tips.append("Expand Skills with 8–15 role-specific keywords from the job description.")
+        if not coverage.get("certifications"): tips.append("List relevant certifications (e.g., AWS, Scrum) if you have them.")
+        if (extracted.get("experienceYears") or 0) > 0: tips.append("Quantify achievements with metrics (%, $, time saved, scale).")
+        if not coverage.get("projects"): tips.append("Add 2–3 Projects with problem, action, measurable results.")
+        if scores.get("structure", 100) < 80: tips.append("Improve formatting: clear headers, consistent bullets, and spacing.")
+        return tips
 
+    # LLM path
     try:
         from openai import OpenAI
         client = OpenAI(api_key=api_key)
-        prompt = _build_prompt(extracted, coverage, scores, job_role)
+        target = job_role or extracted.get("jobRole") or "Not specified"
+        skills = ", ".join(extracted.get("skills", [])[:20]) or "None detected"
+        yrs = extracted.get("experienceYears") or 0
+        edu = extracted.get("education") or "Not detected"
+        certs = ", ".join(extracted.get("certifications", [])[:10]) or "None"
+        projects = extracted.get("projectsCount") or 0
+
+        prompt = f"""
+You are an expert resume reviewer and ATS coach.
+Target role: {target}
+
+Extracted snapshot:
+- Skills: {skills}
+- Experience (years): {yrs}
+- Education: {edu}
+- Certifications: {certs}
+- Projects count: {projects}
+- Section coverage: {coverage}
+- Scores: {scores}
+
+Write at most 8 crisp, actionable suggestions to improve this resume for ATS and recruiters.
+Rules:
+- Be specific and role-aware.
+- Use imperative voice ("Do X"), add concrete examples.
+- Emphasize quantification, relevant keywords, and formatting.
+- If a section is missing, call it out explicitly.
+Output as bullet list, each bullet under ~25 words.
+"""
         resp = client.chat.completions.create(
             model=model_name,
-            messages=[
-                {"role": "system", "content": "You are an expert resume reviewer. Be specific, concise, and factual."},
-                {"role": "user", "content": prompt},
-            ],
-            temperature=0.2,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
         )
         text = resp.choices[0].message.content.strip()
-        # split into bullets safely
-        lines = [l.strip("-• ").strip() for l in text.split("\n") if l.strip()]
-        return [l for l in lines if l]
+        bullets = [ln.strip(" -•") for ln in text.splitlines() if ln.strip()]
+        return bullets[:8]
     except Exception:
-        return _fallback_rule_based_feedback(extracted, coverage)
+        return ["Enable LLM for tailored guidance. Meanwhile: add summary, expand skills with JD keywords, quantify results, and ensure clear, consistent formatting."]
