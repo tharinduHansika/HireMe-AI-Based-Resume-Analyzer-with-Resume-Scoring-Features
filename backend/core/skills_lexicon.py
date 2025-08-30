@@ -1,17 +1,53 @@
-# core/skills_lexicon.py
-TECH = {
-    "python","java","javascript","typescript","c#","c++","go","ruby","php","sql","nosql",
-    "html","css","react","angular","vue","node","django","flask","spring","dotnet","express",
-    "pandas","numpy","scikit-learn","xgboost","tensorflow","pytorch","keras",
-    "aws","azure","gcp","docker","kubernetes","terraform","git","linux",
-    "tableau","power bi","excel","snowflake","bigquery","spark","hadoop",
-    "seo","sem","google analytics","facebook ads","adwords","crm","salesforce","hubspot",
+# backend/core/skills_lexicon.py
+# Lightweight lexicon + helpers (no external deps)
+
+# Single-word skills (lowercase)
+SKILL_WORDS = {
+    # programming
+    "python", "java", "javascript", "typescript", "html", "css", "sql", "mysql", "postgres", "git",
+    "react", "next.js", "nextjs", "node", "node.js", "nodejs", "jquery", "jira",
+    "wordpress", "tailwind", "bootstrap", "selenium",
+    # data / analytics
+    "excel", "tableau", "powerbi", "power-bi", "bigquery", "ga4", "ga", "analytics", "bi",
+    # product / web
+    "ux", "ui", "rest", "api", "apis", "seo", "sem",
+    # process
+    "agile", "scrum", "kanban",
+    # design / media
+    "photoshop", "illustrator", "after-effects", "premiere", "indesign",
+    # social / marketing
+    "facebook", "instagram", "tiktok",
 }
 
-BUSINESS = {
-    "project management","agile","scrum","kanban","stakeholder management","roadmapping",
-    "financial modeling","forecasting","budgeting","market research","competitive analysis",
-    "content marketing","email marketing","copywriting","branding","ui/ux","wireframing",
+# Multi-word phrases (lowercase); keep short, unambiguous phrases
+SKILL_PHRASES = {
+    "html/css", "html / css", "front-end", "front end", "back-end", "back end",
+    "google analytics", "google analytics 4", "power bi", "data analysis",
+    "data visualization", "content marketing", "social media", "unit testing",
+    "continuous integration", "rest api", "rest apis",
 }
 
-ALL_SKILLS = TECH | BUSINESS
+# Canonicalization map -> pretty labels
+CANONICAL = {
+    "nextjs": "Next.js",
+    "next.js": "Next.js",
+    "nodejs": "Node.js",
+    "node.js": "Node.js",
+    "ga4": "Google Analytics 4",
+    "ga": "Google Analytics",
+    "powerbi": "Power BI",
+    "power-bi": "Power BI",
+    "html": "HTML",
+    "css": "CSS",
+    "sql": "SQL",
+    "ux": "UX",
+    "ui": "UI",
+}
+
+# Words we never want to show as skills
+BANNED_TOKENS = {
+    "associate", "currently", "present", "hons", "summary", "professional",
+    "year", "years", "month", "months", "gmail.com", "linkedin", "www", "com",
+    "sri", "lanka", "metropolitan", "university", "cardiff", "engineer", "developer",
+    "manager", "company", "project", "projects", "design", "product", "system"
+}
