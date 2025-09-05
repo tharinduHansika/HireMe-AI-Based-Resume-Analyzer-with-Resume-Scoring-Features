@@ -1,3 +1,4 @@
+# backend/services/llm.py
 import os
 from openai import OpenAI
 
@@ -35,14 +36,16 @@ def llm_feedback_if_enabled(sections: dict, feats: dict, score: int) -> list[str
     client = OpenAI(api_key=api_key)
     prompt = _make_prompt(sections, feats, score)
 
+    # Uses Chat Completions API (official ref). :contentReference[oaicite:4]{index=4}
     try:
         rsp = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o-mini",  # fast, low-cost model suitable for feedback
             messages=[
-                {"role":"system","content":"You are a precise resume reviewer."},
-                {"role":"user","content": prompt}
+                {"role": "system", "content": "You are a precise resume reviewer."},
+                {"role": "user", "content": prompt},
             ],
             temperature=0.3,
+            max_tokens=350
         )
         text = rsp.choices[0].message.content or ""
         bullets = [ln.strip("•- \t") for ln in text.splitlines() if ln.strip()]

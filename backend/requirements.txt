@@ -17,3 +17,5 @@ regex==2024.5.15
 spacy==3.7.5   # optional; improves heuristics if you later use NER
 openai==1.40.6 # optional; only needed for AI feedback
 python-dotenv==1.0.1
+
+httpx<0.27
